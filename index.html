@@ -4,14 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>即時文字雲</title>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
 .container { max-width: 900px; margin: 0 auto; padding: 20px; }
 h1 { text-align: center; font-size: 2rem; margin-bottom: 8px; color: #38bdf8; }
 .subtitle { text-align: center; color: #94a3b8; margin-bottom: 24px; font-size: 0.9rem; }
-
 .input-area { display: flex; gap: 8px; margin-bottom: 32px; }
 .input-area input {
   flex: 1; padding: 12px 16px; border-radius: 12px; border: 1px solid #334155;
@@ -23,7 +22,6 @@ h1 { text-align: center; font-size: 2rem; margin-bottom: 8px; color: #38bdf8; }
   color: #0f172a; font-weight: 600; cursor: pointer; font-size: 1rem;
 }
 .input-area button:hover { background: #7dd3fc; }
-
 .cloud { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; padding: 24px; min-height: 300px; }
 .word-item {
   display: inline-block; padding: 8px 16px; border-radius: 999px;
@@ -33,19 +31,16 @@ h1 { text-align: center; font-size: 2rem; margin-bottom: 8px; color: #38bdf8; }
 }
 .word-item:hover { transform: scale(1.1); border-color: #38bdf8; }
 @keyframes pop { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-
 .size-sm { font-size: 0.8rem; }
 .size-md { font-size: 1.1rem; }
 .size-lg { font-size: 1.5rem; }
 .size-xl { font-size: 2rem; }
 .size-xxl { font-size: 2.5rem; }
-
 .count-badge {
   display: inline-block; margin-left: 4px; font-size: 0.65em;
   background: #38bdf8; color: #0f172a; border-radius: 999px;
   padding: 1px 6px; vertical-align: super;
 }
-
 .stats { text-align: center; color: #64748b; font-size: 0.85rem; margin-bottom: 16px; }
 .footer { text-align: center; color: #475569; font-size: 0.8rem; margin-top: 32px; }
 </style>
@@ -62,18 +57,19 @@ h1 { text-align: center; font-size: 2rem; margin-bottom: 8px; color: #38bdf8; }
   <div class="cloud" id="wordCloud"></div>
   <p class="footer">資料即時同步 — 關閉再開，資料仍在</p>
 </div>
-
 <script>
 const SUPABASE_URL = 'https://gqowayjtuoqzdeuijnsh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdxb3dheWp0dW9xemRldWlqbnNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0ODE2NDcsImV4cCI6MjA5NTA1NzY0N30.UF_baULxgx3LA_MxSIdCL6qfODeR03ZGYPXU5jhrSqQ';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  realtime: { heartbeatIntervalMs: 15000 }
+});
 const wordInput = document.getElementById('wordInput');
 const submitBtn = document.getElementById('submitBtn');
 const wordCloud = document.getElementById('wordCloud');
 const totalCount = document.getElementById('totalCount');
 
-function getSizeClass(count) {
+function getSize(count) {
   if (count <= 1) return 'size-sm';
   if (count <= 3) return 'size-md';
   if (count <= 6) return 'size-lg';
@@ -81,43 +77,42 @@ function getSizeClass(count) {
   return 'size-xxl';
 }
 
-function renderCloud(words) {
+function render(words) {
   wordCloud.innerHTML = '';
-  const total = words.reduce((sum, w) => sum + w.count, 0);
-  totalCount.textContent = total;
+  totalCount.textContent = words.reduce((s, w) => s + w.count, 0);
   words.sort((a, b) => b.count - a.count);
   words.forEach(w => {
     const el = document.createElement('span');
-    el.className = `word-item ${getSizeClass(w.count)}`;
-    el.innerHTML = `${w.word}<span class="count-badge">${w.count}</span>`;
+    el.className = 'word-item ' + getSize(w.count);
+    el.innerHTML = w.word + '<span class="count-badge">' + w.count + '</span>';
     wordCloud.appendChild(el);
   });
 }
 
-async function loadWords() {
-  const { data, error } = await supabase.from('wordcloud_words').select('word');
-  if (error) return;
-  const freq = {};
-  data.forEach(r => { freq[r.word] = (freq[r.word] || 0) + 1; });
-  renderCloud(Object.entries(freq).map(([word, count]) => ({ word, count })));
+async function load() {
+  const { data, error } = await sb.from('wordcloud_words').select('word');
+  if (error) { console.error('load error:', error); return; }
+  const map = {};
+  (data || []).forEach(r => { map[r.word] = (map[r.word] || 0) + 1; });
+  render(Object.keys(map).map(k => ({ word: k, count: map[k] })));
 }
 
-async function submitWord() {
+async function submit() {
   const word = wordInput.value.trim();
   if (!word) return;
   wordInput.value = '';
-  const { error } = await supabase.from('wordcloud_words').insert({ word });
-  if (error) alert('錯誤：' + error.message);
+  const { error } = await sb.from('wordcloud_words').insert({ word });
+  if (error) { console.error('submit error:', error); alert('送出失敗：' + error.message); }
 }
 
-submitBtn.addEventListener('click', submitWord);
-wordInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitWord(); });
+submitBtn.onclick = submit;
+wordInput.onkeydown = e => { if (e.key === 'Enter') submit(); };
 
-supabase.channel('wordcloud_realtime')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'wordcloud_words' }, loadWords)
-  .subscribe();
+sb.channel('cloudchan')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'wordcloud_words' }, () => load())
+  .subscribe(status => { if (status !== 'SUBSCRIBED') console.warn('realtime status:', status); });
 
-loadWords();
+load();
 </script>
 </body>
 </html>
