@@ -24,12 +24,15 @@ h1 { text-align: center; font-size: 2rem; margin-bottom: 8px; color: #38bdf8; }
 .input-area button:hover { background: #7dd3fc; }
 .cloud { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; padding: 24px; min-height: 300px; }
 .word-item {
-  display: inline-block; padding: 8px 16px; border-radius: 999px;
-  background: linear-gradient(135deg, #1e293b, #334155);
-  border: 1px solid #475569; cursor: default; transition: all 0.2s;
-  animation: pop 0.3s ease-out;
+  display: inline-block; cursor: default; transition: all 0.3s;
+  animation: pop 0.4s ease-out;
+  color: #e2e8f0;
 }
-.word-item:hover { transform: scale(1.1); border-color: #38bdf8; }
+.word-item:hover { transform: scale(1.15); color: #38bdf8; }
+.word-item:nth-child(3n) { color: #f472b6; }
+.word-item:nth-child(5n) { color: #34d399; }
+.word-item:nth-child(7n) { color: #fbbf24; }
+.word-item:nth-child(11n) { color: #60a5fa; }
 @keyframes pop { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .size-sm { font-size: 0.8rem; }
 .size-md { font-size: 1.1rem; }
@@ -37,9 +40,8 @@ h1 { text-align: center; font-size: 2rem; margin-bottom: 8px; color: #38bdf8; }
 .size-xl { font-size: 2rem; }
 .size-xxl { font-size: 2.5rem; }
 .count-badge {
-  display: inline-block; margin-left: 4px; font-size: 0.65em;
-  background: #38bdf8; color: #0f172a; border-radius: 999px;
-  padding: 1px 6px; vertical-align: super;
+  display: inline-block; margin-left: 3px; font-size: 0.6em;
+  opacity: 0.5; vertical-align: super;
 }
 .stats { text-align: center; color: #64748b; font-size: 0.85rem; margin-bottom: 16px; }
 .footer { text-align: center; color: #475569; font-size: 0.8rem; margin-top: 32px; }
@@ -77,10 +79,14 @@ function getSize(count) {
   return 'size-xxl';
 }
 
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
 function render(words) {
   wordCloud.innerHTML = '';
   totalCount.textContent = words.reduce((s, w) => s + w.count, 0);
-  words.sort((a, b) => b.count - a.count);
+  shuffle(words);
   words.forEach(w => {
     const el = document.createElement('span');
     el.className = 'word-item ' + getSize(w.count);
