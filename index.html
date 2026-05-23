@@ -55,7 +55,11 @@ h1 { text-align: center; font-size: 2rem; margin-bottom: 8px; color: #38bdf8; }
     <input type="text" id="wordInput" placeholder="輸入關鍵字..." maxlength="20">
     <button id="submitBtn">送出</button>
   </div>
-  <div class="stats"><span id="totalCount">0</span> 個關鍵字</div>
+  <div class="stats">
+    <span id="totalCount">0</span> 個關鍵字
+    <span style="margin:0 12px;color:#334155">|</span>
+    <button id="clearBtn" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.85rem;text-decoration:underline">清除全部</button>
+  </div>
   <div class="cloud" id="wordCloud"></div>
   <p class="footer">資料即時同步 — 關閉再開，資料仍在</p>
 </div>
@@ -91,6 +95,8 @@ function render(words) {
     const el = document.createElement('span');
     el.className = 'word-item ' + getSize(w.count);
     el.innerHTML = w.word + '<span class="count-badge">' + w.count + '</span>';
+    el.title = '按兩下刪除「' + w.word + '」';
+    el.ondblclick = () => deleteWord(w.word);
     wordCloud.appendChild(el);
   });
 }
@@ -113,6 +119,18 @@ async function submit() {
 
 submitBtn.onclick = submit;
 wordInput.onkeydown = e => { if (e.key === 'Enter') submit(); };
+
+async function deleteWord(word) {
+  if (!confirm('刪除「' + word + '」？')) return;
+  await sb.from('wordcloud_words').delete().eq('word', word);
+}
+
+async function clearAll() {
+  if (!confirm('清除全部關鍵字？')) return;
+  await sb.from('wordcloud_words').delete().neq('id', 0);
+}
+
+document.getElementById('clearBtn').onclick = clearAll;
 
 sb.channel('cloudchan')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'wordcloud_words' }, () => load())
