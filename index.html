@@ -106,7 +106,8 @@ async function submitWord() {
   const word = wordInput.value.trim();
   if (!word) return;
   wordInput.value = '';
-  await supabase.from('wordcloud_words').insert({ word });
+  const { error } = await supabase.from('wordcloud_words').insert({ word });
+  if (error) alert('錯誤：' + error.message);
 }
 
 submitBtn.addEventListener('click', submitWord);
